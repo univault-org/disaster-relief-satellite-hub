@@ -1,0 +1,6 @@
+[submodule "lib/srpt-protocol"]
+	path = lib/srpt-protocol
+	url = https://github.com/univault-org/srpt-protocol.git
+[submodule "lib/riif-ultrasonic"]
+	path = lib/riif-ultrasonic
+	url = https://github.com/univault-org/riif-ultrasonic.git

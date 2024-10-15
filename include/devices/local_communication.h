@@ -17,5 +17,5 @@ public:
 private:
     RiifUltrasonic m_ultrasonic;
     std::vector<uint8_t> m_sharedKey;
+    std::vector<int16_t> m_lastSentData;  // Added for simulation purposes
 };
-

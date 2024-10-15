@@ -10,12 +10,14 @@ pkg_check_modules(LIBSODIUM REQUIRED libsodium)
 
 # Add submodules
 add_subdirectory(lib/srpt-protocol)
-add_subdirectory(lib/riif-ultrasonic EXCLUDE_FROM_ALL)
+add_subdirectory(lib/riif-ultrasonic)
 
 # Include directories
 include_directories(include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/srpt-protocol/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/srpt-protocol/src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/riif-ultrasonic/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/riif-ultrasonic/src)
 include_directories(${LIBSODIUM_INCLUDE_DIRS})
 
 # Add source files
@@ -23,6 +25,12 @@ file(GLOB_RECURSE SOURCES
     "src/*.cpp"
     "src/business/*.cpp"
     "src/network/*.cpp"
+    "src/devices/*.cpp"
+)
+
+# Set include directories for riif_ultrasonic
+target_include_directories(riif_ultrasonic PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/riif-ultrasonic/include
 )
 
 # Create main library
@@ -36,19 +44,12 @@ target_link_libraries(disaster_relief_hub_lib
         ${LIBSODIUM_LIBRARIES}
 )
 
-# Set include directories for riif_ultrasonic
-target_include_directories(riif_ultrasonic PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib/riif-ultrasonic/include
-)
-
-# Create main executable
-add_executable(${PROJECT_NAME} src/main.cpp)
-
-# Link main executable with the library
-target_link_libraries(${PROJECT_NAME} 
-    PRIVATE 
-        disaster_relief_hub_lib
-)
+# Create main executable (uncomment when you want to build the main application)
+# add_executable(${PROJECT_NAME} src/main.cpp)
+# target_link_libraries(${PROJECT_NAME} 
+#     PRIVATE 
+#         disaster_relief_hub_lib
+# )
 
 # Find GTest package
 find_package(GTest REQUIRED)
@@ -58,26 +59,6 @@ enable_testing()
 
 # Add subdirectory for tests
 add_subdirectory(tests)
-
-# Add test executable
-add_executable(disaster_relief_hub_tests
-    tests/test_satellite_communication.cpp
-    tests/test_ultrasonic_communication.cpp
-    tests/test_listing_feature.cpp
-    tests/test_preorder_feature.cpp
-)
-
-# Link test executable
-target_link_libraries(disaster_relief_hub_tests
-    PRIVATE
-        GTest::GTest
-        GTest::Main
-        disaster_relief_hub_lib
-)
-
-# Discover and run the tests
-include(GoogleTest)
-gtest_discover_tests(disaster_relief_hub_tests)
 
 # Optional: Add messages for debugging
 message(STATUS "Project source dir: ${PROJECT_SOURCE_DIR}")

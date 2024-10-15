@@ -10,9 +10,13 @@
 class SatelliteHubTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        std::cout << "SatelliteHubTest::SetUp() called" << std::endl;
+        std::cout << "==== SatelliteHubTest::SetUp() called ====" << std::endl;
+        std::cout << "Initializing SRPT..." << std::endl;
         ASSERT_TRUE(hub.initializeSRPT()) << "Failed to initialize SRPT";
+        std::cout << "SRPT initialized successfully" << std::endl;
+        std::cout << "Connecting to satellite..." << std::endl;
         ASSERT_TRUE(hub.connectToSatellite()) << "Failed to connect to satellite";
+        std::cout << "Connected to satellite successfully" << std::endl;
     }
 
     void TearDown() override {
@@ -82,12 +86,4 @@ TEST_F(SatelliteHubTest, ConcurrentSendReceive) {
     for (size_t i = 0; i < std::min(sentMessages.size(), receivedMessages.size()); ++i) {
         EXPECT_EQ(sentMessages[i], receivedMessages[i]) << "Mismatch at index " << i;
     }
-}
-
-int main(int argc, char **argv) {
-    std::cout << "Starting satellite communication tests" << std::endl;
-    ::testing::InitGoogleTest(&argc, argv);
-    int result = RUN_ALL_TESTS();
-    std::cout << "Finished satellite communication tests" << std::endl;
-    return result;
 }

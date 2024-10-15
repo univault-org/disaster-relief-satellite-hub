@@ -1,6 +1,7 @@
 #include "devices/local_communication.h"
 #include <algorithm>
 #include <random>
+#include <stdexcept>
 
 LocalCommunication::LocalCommunication() {}
 
@@ -14,8 +15,7 @@ bool LocalCommunication::initializeUltrasonic() {
 }
 
 bool LocalCommunication::performKeyExchange() {
-    // Generate a random key for demonstration purposes
-    // In a real implementation, this should be a proper key exchange protocol
+    // Generate a random key
     m_sharedKey.resize(32);
     std::random_device rd;
     std::generate(m_sharedKey.begin(), m_sharedKey.end(), std::ref(rd));
@@ -24,27 +24,47 @@ bool LocalCommunication::performKeyExchange() {
     std::string keyStr(m_sharedKey.begin(), m_sharedKey.end());
     auto encodedKey = m_ultrasonic.encode(keyStr);
     
-    // In a real implementation, we would receive a response here
-    // and perform the actual key exchange
+    // Simulate receiving the encoded key
+    auto receivedKeyVec = m_ultrasonic.decode(encodedKey);
+    std::string receivedKeyStr(receivedKeyVec.begin(), receivedKeyVec.end());
     
-    return true;
+    // In a real implementation, we would validate the received key
+    // and perform additional steps for secure key exchange
+    
+    return receivedKeyStr == keyStr;
 }
 
 bool LocalCommunication::sendSecureData(const std::string& data) {
-    // In a real implementation, we would encrypt the data with the shared key
-    // For now, we'll just encode and send it
-    auto encodedData = m_ultrasonic.encode(data);
-    // In a real scenario, we would transmit this data
+    if (m_sharedKey.empty()) {
+        throw std::runtime_error("Shared key not set. Perform key exchange first.");
+    }
+    
+    // Simple XOR encryption (for demonstration purposes only)
+    std::vector<uint8_t> encryptedData(data.begin(), data.end());
+    for (size_t i = 0; i < encryptedData.size(); ++i) {
+        encryptedData[i] ^= m_sharedKey[i % m_sharedKey.size()];
+    }
+    
+    m_lastSentData = m_ultrasonic.encode(std::string(encryptedData.begin(), encryptedData.end()));
     return true;
 }
 
 bool LocalCommunication::receiveSecureData(std::string& data) {
-    // In a real implementation, we would receive encoded data,
-    // decode it, and then decrypt it with the shared key
-    // For demonstration, we'll just create some dummy data
-    std::vector<int16_t> dummyEncodedData = {1, 2, 3, 4, 5};
-    auto decodedData = m_ultrasonic.decode(dummyEncodedData);
-    data = std::string(decodedData.begin(), decodedData.end());
+    if (m_sharedKey.empty()) {
+        throw std::runtime_error("Shared key not set. Perform key exchange first.");
+    }
+    
+    // In a real implementation, we would receive actual encoded data
+    // For simulation, we'll use the last sent data
+    auto decodedDataVec = m_ultrasonic.decode(m_lastSentData);
+    std::string decodedData(decodedDataVec.begin(), decodedDataVec.end());
+    
+    // Simple XOR decryption (for demonstration purposes only)
+    std::vector<uint8_t> decryptedData(decodedData.begin(), decodedData.end());
+    for (size_t i = 0; i < decryptedData.size(); ++i) {
+        decryptedData[i] ^= m_sharedKey[i % m_sharedKey.size()];
+    }
+    
+    data = std::string(decryptedData.begin(), decryptedData.end());
     return true;
 }
-

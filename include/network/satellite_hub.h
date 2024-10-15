@@ -1,6 +1,7 @@
-#ifndef SATELLITE_HUB_H
-#define SATELLITE_HUB_H
+#pragma once
 
+#include "srpt_satellite.h"
+#include <memory>
 #include <string>
 
 class SatelliteHub {
@@ -14,8 +15,6 @@ public:
     bool receiveData(std::string& data);
 
 private:
-    // Add private members as needed
+    std::unique_ptr<SRPT::Satellite::SatelliteSession> m_session;
+    SRPT::Satellite::SatelliteConfig m_config;
 };
-
-#endif // SATELLITE_HUB_H
-

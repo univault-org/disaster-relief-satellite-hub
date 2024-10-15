@@ -29,6 +29,51 @@ Small businesses that engage with the hub can rapidly build a reputation for ada
 
 As a reward for their willingness to contribute to the relief effort, participating businesses also gain certifications and recognition that boost their credibility and brand image. This opens doors to future contracts, new customer bases, and long-term growth opportunities. In essence, the hub provides a direct pathway for small businesses to innovate, grow, and thrive in a broader, more connected market, making their relief contributions a stepping stone for their future success.
 
+## System Architecture and Primary Use Case
+
+The Disaster Relief Satellite Hub is designed to provide secure and reliable communication in disaster-struck areas where traditional infrastructure has been compromised. Our system architecture focuses on high security, leveraging satellite technology for internet connectivity, Wi-Fi for local area networking, and ultrasonic communication for secure key exchange. This multi-layered approach ensures robust, encrypted communications, particularly crucial for sensitive operations such as cryptocurrency transactions.
+
+### Key Components:
+
+1. **Trailer-based Satellite Hub:**
+   - Satellite communication hardware for internet connectivity
+   - Wi-Fi access point for local device connections
+   - C++ program for core functionality (satellite and ultrasonic communication)
+   - Node.js server for API and local network management
+   - Ultrasonic transceiver for secure key exchange
+
+2. **User Devices (Relief Recipients):**
+   - Progressive Web App (PWA) for user interface
+   - Wi-Fi capability to connect to the Satellite Hub
+   - Ultrasonic capability for secure key exchange
+
+### Primary Use Case:
+
+The main scenario we address is providing internet connectivity and secure transaction capabilities to disaster relief recipients within Wi-Fi range of the trailer-based Satellite Hub. This approach offers several advantages:
+
+1. **Immediate Impact:** Quickly restores critical communication and financial services in affected areas.
+2. **High Security:** Utilizes ultrasonic communication for secure key exchange, ensuring encrypted Wi-Fi communications.
+3. **Centralized Management:** Simplifies resource allocation and system maintenance.
+4. **Scalability:** Easy to deploy multiple units to cover larger affected areas.
+5. **Power Efficiency:** Centralizes power-intensive operations in the trailer unit.
+6. **Accessibility:** PWA ensures compatibility across various devices without requiring installation.
+
+By focusing on this use case, we can swiftly deploy a solution that restores essential communication services and enables secure financial transactions, including cryptocurrency, adhering to the highest security standards even in challenging environments.
+
+### Limitations:
+
+In this initial version, there are some limitations to consider:
+
+1. **Range Restriction:** Relief recipients need to be in close proximity to the trailer for secure transactions when the area's internet infrastructure is down. This may be challenging in widespread disaster zones or areas with difficult terrain.
+
+2. **Capacity Constraints:** The number of simultaneous users that can be served is limited by the Wi-Fi and ultrasonic capabilities of a single trailer unit.
+
+3. **Centralized Point of Failure:** If the trailer experiences technical issues, it could potentially disrupt services for all users in the area.
+
+To address these challenges, particularly the range limitation, we are exploring an innovative solution: a mobile mesh network where each device plays a role in propagating the encryption key for high-security transactions. This approach would significantly extend the reach of our secure communication system beyond the immediate vicinity of the trailer.
+
+For more details on this proposed solution, please refer to our [Ultrasonic Range Extension](./UltrasonicRangeExtension.md) document.
+
 ## Table of Contents
 
 - [Features](#features)
@@ -37,6 +82,3 @@ As a reward for their willingness to contribute to the relief effort, participat
 - [Usage](#usage)
 - [Contributing](#contributing)
 - [License](#license)
-
-
-

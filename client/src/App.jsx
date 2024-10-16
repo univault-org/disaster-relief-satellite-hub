@@ -4,50 +4,80 @@ import './App.css'
 function App() {
   const [order, setOrder] = useState('')
   const [audioContext, setAudioContext] = useState(null)
+  const [audioStatus, setAudioStatus] = useState('Not initialized')
 
   useEffect(() => {
-    setAudioContext(new (window.AudioContext || window.webkitAudioContext)())
-  }, [])
-
-  const generateUltrasonicSignal = (message) => {
-    if (!audioContext) return;
-
-    const encoder = new TextEncoder();
-    const data = encoder.encode(message);
-    const bits = [];
-    for (let byte of data) {
-      for (let i = 0; i < 8; i++) {
-        bits.push((byte & (1 << i)) !== 0);
+    const initAudio = () => {
+      if (!audioContext) {
+        try {
+          const newAudioContext = new (window.AudioContext || window.webkitAudioContext)()
+          setAudioContext(newAudioContext)
+          setAudioStatus('Initialized')
+        } catch (error) {
+          console.error('Failed to initialize audio context:', error)
+          setAudioStatus('Initialization failed')
+        }
       }
     }
 
-    const sampleRate = 48000;
-    const f0 = 15000;
-    const df = 1000;
-    const samplesPerFrame = 480;
+    document.addEventListener('click', initAudio, { once: true })
 
-    const buffer = audioContext.createBuffer(1, bits.length * samplesPerFrame, sampleRate);
-    const channel = buffer.getChannelData(0);
+    return () => {
+      document.removeEventListener('click', initAudio)
+    }
+  }, [audioContext])
 
-    bits.forEach((bit, index) => {
-      const frequency = bit ? f0 + df : f0;
-      for (let i = 0; i < samplesPerFrame; i++) {
-        const t = i / sampleRate;
-        channel[index * samplesPerFrame + i] = Math.sin(2 * Math.PI * frequency * t);
+  const generateUltrasonicSignal = (message) => {
+    if (!audioContext) {
+      setAudioStatus('Audio context not initialized')
+      return
+    }
+
+    try {
+      const encoder = new TextEncoder()
+      const data = encoder.encode(message)
+      const bits = []
+      for (let byte of data) {
+        for (let i = 0; i < 8; i++) {
+          bits.push((byte & (1 << i)) !== 0)
+        }
       }
-    });
 
-    const source = audioContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioContext.destination);
-    source.start();
-  };
+      const sampleRate = 48000
+      const f0 = 15000
+      const df = 1000
+      const samplesPerFrame = 480
+
+      const buffer = audioContext.createBuffer(1, bits.length * samplesPerFrame, sampleRate)
+      const channel = buffer.getChannelData(0)
+
+      bits.forEach((bit, index) => {
+        const frequency = bit ? f0 + df : f0
+        for (let i = 0; i < samplesPerFrame; i++) {
+          const t = i / sampleRate
+          channel[index * samplesPerFrame + i] = Math.sin(2 * Math.PI * frequency * t)
+        }
+      })
+
+      const source = audioContext.createBufferSource()
+      source.buffer = buffer
+      source.connect(audioContext.destination)
+      source.start()
+    } catch (error) {
+      console.error('Failed to generate ultrasonic signal:', error)
+      setAudioStatus('Signal generation failed')
+    }
+  }
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Order submitted:', order);
+    e.preventDefault()
+    if (!audioContext) {
+      alert('Please click anywhere on the page to initialize audio before submitting.')
+      return
+    }
+    console.log('Order submitted:', order)
     const message = "TEST:" + order; // Prepend "TEST:" to the order
-    generateUltrasonicSignal(message);
+    generateUltrasonicSignal(message)
   }
 
   return (
@@ -62,8 +92,27 @@ function App() {
           cols="50"
         />
         <br />
-        <button type="submit">Submit Order and Send Key</button>
+        <button type="submit" style={{
+          backgroundColor: '#4CAF50',
+          border: 'none',
+          color: 'white',
+          padding: '15px 32px',
+          textAlign: 'center',
+          textDecoration: 'none',
+          display: 'inline-block',
+          fontSize: '16px',
+          margin: '4px 2px',
+          cursor: 'pointer'
+        }}>
+          Submit Order and Send Signal
+        </button>
       </form>
+      {!audioContext && (
+        <p>Click anywhere on the page to initialize audio.</p>
+      )}
+      {audioStatus !== 'Initialized' && (
+        <p>{audioStatus}</p>
+      )}
     </div>
   )
 }

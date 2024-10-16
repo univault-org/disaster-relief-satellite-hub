@@ -4,9 +4,11 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <iomanip>  // For std::setw and std::setfill
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <algorithm>  // For std::search
 
 class PreorderUltrasonicTest : public ::testing::Test {
 protected:
@@ -184,6 +186,117 @@ TEST_F(PreorderUltrasonicTest, ReceiveUltrasonicSignal) {
         std::cout << "Received order: " << receivedOrder << std::endl;
 
         // You can add more specific assertions here based on the expected format of your order data
+    } catch (const std::exception& e) {
+        FAIL() << "Exception occurred: " << e.what();
+    }
+}
+
+TEST_F(PreorderUltrasonicTest, ReceiveKnownBitPattern) {
+    std::cout << "Starting known bit pattern reception test." << std::endl;
+
+    try {
+        const int recordingDuration = 60;
+        std::atomic<bool> signalReceived{false};
+        std::vector<uint8_t> receivedPattern;
+
+        // Define the expected pattern
+        const std::vector<uint8_t> expectedPattern = {
+            0xAA, 0x55, 0xAA, 0x55,
+            0xFF, 0x00, 0xFF, 0x00,
+            0x12, 0x34, 0x56, 0x78,
+            0xFE, 0xDC, 0xBA, 0x98
+        };
+
+        // Start recording audio
+        std::thread recordThread([this, recordingDuration, &signalReceived, &receivedPattern, &expectedPattern]() {
+            PaStream *stream;
+            PaError err;
+
+            err = Pa_OpenDefaultStream(&stream, 1, 0, paFloat32, riif.getParameters().sampleRate,
+                                       256, paCallback, this);
+            if (err != paNoError) {
+                throw std::runtime_error(std::string("PortAudio stream open failed: ") + Pa_GetErrorText(err));
+            }
+
+            isRecording = true;
+            err = Pa_StartStream(stream);
+            if (err != paNoError) {
+                throw std::runtime_error(std::string("PortAudio stream start failed: ") + Pa_GetErrorText(err));
+            }
+
+            std::cout << "Recording started. Please play the ultrasonic signal from the PWA within 60 seconds." << std::endl;
+
+            for (int i = 0; i < recordingDuration; ++i) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                std::cout << "Listening... " << (i + 1) << " seconds elapsed." << std::endl;
+                
+                if (audioBuffer.size() > riif.getParameters().sampleRate) {
+                    std::vector<int16_t> tempAudioData(audioBuffer.size());
+                    for (size_t j = 0; j < audioBuffer.size(); ++j) {
+                        tempAudioData[j] = static_cast<int16_t>(audioBuffer[j] * 32767.0f);
+                    }
+                    std::vector<bool> tempDecodedData = riif.decode(tempAudioData);
+                    
+                    // Convert bits to bytes
+                    std::vector<uint8_t> tempPattern;
+                    for (size_t j = 0; j < tempDecodedData.size(); j += 8) {
+                        uint8_t byte = 0;
+                        for (size_t k = 0; k < 8 && j + k < tempDecodedData.size(); ++k) {
+                            byte |= (tempDecodedData[j + k] ? 1 : 0) << k;
+                        }
+                        tempPattern.push_back(byte);
+                    }
+
+                    std::cout << "Decoded data size: " << tempPattern.size() << " bytes" << std::endl;
+                    std::cout << "Decoded pattern: ";
+                    for (uint8_t byte : tempPattern) {
+                        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte) << " ";
+                    }
+                    std::cout << std::dec << std::endl;
+
+                    if (tempPattern.size() >= expectedPattern.size()) {
+                        // Check if the expected pattern is found in the decoded data
+                        auto it = std::search(tempPattern.begin(), tempPattern.end(), expectedPattern.begin(), expectedPattern.end());
+                        if (it != tempPattern.end()) {
+                            std::cout << "Valid pattern detected!" << std::endl;
+                            signalReceived = true;
+                            receivedPattern = std::vector<uint8_t>(it, it + expectedPattern.size());
+                            break;
+                        }
+                    }
+                }
+            }
+
+            isRecording = false;
+            err = Pa_StopStream(stream);
+            if (err != paNoError) {
+                throw std::runtime_error(std::string("PortAudio stream stop failed: ") + Pa_GetErrorText(err));
+            }
+
+            err = Pa_CloseStream(stream);
+            if (err != paNoError) {
+                throw std::runtime_error(std::string("PortAudio stream close failed: ") + Pa_GetErrorText(err));
+            }
+        });
+
+        // Wait for recording to finish
+        recordThread.join();
+
+        std::cout << "Recording finished. Captured " << audioBuffer.size() << " samples." << std::endl;
+
+        if (!signalReceived) {
+            FAIL() << "No valid bit pattern detected within 60 seconds.";
+        }
+
+        std::cout << "Received pattern: ";
+        for (uint8_t byte : receivedPattern) {
+            std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte) << " ";
+        }
+        std::cout << std::dec << std::endl;
+
+        // Verify the received pattern
+        ASSERT_EQ(receivedPattern, expectedPattern) << "Received pattern does not match expected pattern";
+
     } catch (const std::exception& e) {
         FAIL() << "Exception occurred: " << e.what();
     }

@@ -34,7 +34,18 @@ function App() {
     setLogs(prevLogs => [...prevLogs, `${new Date().toISOString()}: ${message}`])
   }
 
-  const generateUltrasonicSignal = (message) => {
+  const generateKnownBitPattern = () => {
+    // Generate a 128-bit pattern (16 bytes)
+    const pattern = new Uint8Array([
+      0xAA, 0x55, 0xAA, 0x55, // Alternating 10101010 and 01010101
+      0xFF, 0x00, 0xFF, 0x00, // Alternating all 1s and all 0s
+      0x12, 0x34, 0x56, 0x78, // Increasing pattern
+      0xFE, 0xDC, 0xBA, 0x98  // Decreasing pattern
+    ]);
+    return pattern;
+  }
+
+  const generateUltrasonicSignal = () => {
     if (!audioContext) {
       setAudioStatus('Audio context not initialized')
       addLog('Audio context not initialized')
@@ -43,12 +54,11 @@ function App() {
 
     try {
       addLog('Starting ultrasonic signal generation')
-      const encoder = new TextEncoder()
-      const data = encoder.encode(message)
-      addLog(`Message encoded: ${data.length} bytes`)
+      const pattern = generateKnownBitPattern();
+      addLog(`Known pattern generated: ${pattern.length} bytes`)
 
       const bits = []
-      for (let byte of data) {
+      for (let byte of pattern) {
         for (let i = 0; i < 8; i++) {
           bits.push((byte & (1 << i)) !== 0)
         }
@@ -99,11 +109,8 @@ function App() {
       alert('Please click anywhere on the page to initialize audio before submitting.')
       return
     }
-    console.log('Order submitted:', order)
-    addLog(`Order submitted: ${order}`)
-    const message = "TEST:" + order
-    addLog(`Preparing message: ${message}`)
-    generateUltrasonicSignal(message)
+    addLog('Generating known bit pattern signal')
+    generateUltrasonicSignal()
   }
 
   return (

@@ -25,6 +25,11 @@ protected:
             params.rsEccLength = 32;
             riif.setParameters(params);
 
+            std::cout << "Parameters set in test:" << std::endl;
+            std::cout << "  f0: " << riif.getParameters().f0 << std::endl;
+            std::cout << "  df: " << riif.getParameters().df << std::endl;
+            std::cout << "  sampleRate: " << riif.getParameters().sampleRate << std::endl;
+
             PaError err = Pa_Initialize();
             if (err != paNoError) {
                 throw std::runtime_error(std::string("PortAudio initialization failed: ") + Pa_GetErrorText(err));

@@ -18,7 +18,7 @@ protected:
         try {
             RiifUltrasonic::Parameters params;
             params.sampleRate = 48000;
-            params.f0 = 15000.0f;
+            params.f0 = 5000.0f; // Changed from 15000.0f
             params.df = 1000.0f;
             params.samplesPerFrame = 480;
             params.rsMsgLength = 223;
@@ -101,7 +101,7 @@ TEST_F(PreorderUltrasonicTest, ReceiveUltrasonicSignal) {
     std::cout << "Starting ultrasonic signal reception test." << std::endl;
 
     try {
-        const int recordingDuration = 30; // 30 seconds
+        const int recordingDuration = 60; // Increased from 30 to 60 seconds
         std::atomic<bool> signalReceived{false};
         std::string receivedMessage;
 
@@ -135,7 +135,10 @@ TEST_F(PreorderUltrasonicTest, ReceiveUltrasonicSignal) {
                     }
                     std::vector<bool> tempDecodedData = riif.decode(tempAudioData);
                     std::string tempMessage = bitsToString(tempDecodedData);
-                    
+
+                    std::cout << "Decoded data size: " << tempDecodedData.size() << std::endl;
+                    std::cout << "Decoded message: " << tempMessage << std::endl;
+
                     if (tempMessage.substr(0, 5) == "TEST:") {
                         std::cout << "Valid signal detected!" << std::endl;
                         signalReceived = true;

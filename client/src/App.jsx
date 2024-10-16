@@ -44,7 +44,7 @@ function App() {
       }
 
       const sampleRate = 48000
-      const f0 = 15000
+      const f0 = 5000
       const df = 1000
       const samplesPerFrame = 480
 
@@ -62,6 +62,8 @@ function App() {
       const source = audioContext.createBufferSource()
       source.buffer = buffer
       source.connect(audioContext.destination)
+      setAudioStatus('Generating signal...');
+      source.onended = () => setAudioStatus('Signal transmission complete');
       source.start()
     } catch (error) {
       console.error('Failed to generate ultrasonic signal:', error)

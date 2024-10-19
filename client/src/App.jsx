@@ -154,15 +154,6 @@ function App() {
       )}
 
       <br /><br />
-
-      <div className="cell-version">
-        <span>
-          | Build time: <span className="nav-link">@GIT_DATE@</span> |
-          Commit hash: <a className="nav-link" href="https://github.com/ggerganov/ggwave/commit/@GIT_SHA1@">@GIT_SHA1@</a> |
-          Commit subject: <span className="nav-link">@GIT_COMMIT_SUBJECT@</span> |
-          <a className="nav-link" href="https://github.com/ggerganov/ggwave/tree/master/examples/ggwave-js">Source Code</a> |
-        </span>
-      </div>
     </div>
   );
 }

@@ -27,6 +27,29 @@ export default defineConfig({
           }
         ]
       }
-    })
+    }),
+    {
+      name: 'handle-ggwave-import',
+      transform(code, id) {
+        if (id.endsWith('ggwave.js')) {
+          return {
+            code: `${code}
+              export default ggwave_factory;
+            `,
+            map: null
+          }
+        }
+      }
+    }
   ],
+  resolve: {
+    alias: {
+      'ggwave':'../lib/ggwave/bindings/javascript/ggwave.js',
+    },
+  },
+  build: {
+    rollupOptions: {
+      external: ['ggwave'],
+    },
+  },
 })

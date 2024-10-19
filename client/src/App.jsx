@@ -1,127 +1,170 @@
-import { useState, useEffect } from 'react'
-import './App.css'
+import { useState, useEffect, useRef } from 'react';
+import './App.css';
 
 function App() {
-  const [audioContext, setAudioContext] = useState(null)
-  const [logs, setLogs] = useState([])
-  const [isTransmitting, setIsTransmitting] = useState(false)
+  const [ggwaveModule, setGgwaveModule] = useState(null);
+  const [txData, setTxData] = useState('Hello javascript');
+  const [rxData, setRxData] = useState('');
+  const [isCapturing, setIsCapturing] = useState(false);
+  const audioContextRef = useRef(null);
+  const ggwaveInstanceRef = useRef(null);
+  const recorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
 
   useEffect(() => {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    setAudioContext(ctx);
+    const loadGgwaveModule = async () => {
+      try {
+        const module = await import('../../lib/ggwave/bindings/javascript/ggwave.js');
+        const ggwave = await module.default();
+        setGgwaveModule(ggwave);
+      } catch (error) {
+        console.error("Error loading ggwave module:", error);
+      }
+    };
+
+    loadGgwaveModule();
   }, []);
 
-  const addLog = (message) => {
-    setLogs(prevLogs => [...prevLogs, `${new Date().toISOString()}: ${message}`]);
+  const ensureAudioContextAndGGWave = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+    }
+
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+
+    if (!ggwaveInstanceRef.current && ggwaveModule) {
+      const parameters = ggwaveModule.getDefaultParameters();
+      parameters.sampleRateInp = audioContextRef.current.sampleRate;
+      parameters.sampleRateOut = audioContextRef.current.sampleRate;
+      ggwaveInstanceRef.current = ggwaveModule.init(parameters);
+    }
   };
 
-  const generateEncryptionKey = () => {
-    const key = new Uint8Array(16);
-    crypto.getRandomValues(key);
-    return key;
+  const convertTypedArray = (src, type) => {
+    const buffer = new ArrayBuffer(src.byteLength);
+    new src.constructor(buffer).set(src);
+    return new type(buffer);
   };
 
-  const generateSignal = (key) => {
-    if (!audioContext) return;
+  const onSend = () => {
+    ensureAudioContextAndGGWave();
+    if (!ggwaveInstanceRef.current || !audioContextRef.current) return;
 
-    const sampleRate = audioContext.sampleRate;
-    const duration = 5; // 5 seconds total
-    const f0 = 18000; // Base frequency
-    const df = 1000; // Frequency shift
-    const amplitude = 0.8;
+    stopCapture();
 
-    const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
-    const channel = buffer.getChannelData(0);
+    const waveform = ggwaveModule.encode(ggwaveInstanceRef.current, txData, ggwaveModule.ProtocolId.GGWAVE_PROTOCOL_AUDIBLE_FAST, 10);
 
-    // Generate preamble (0.5 seconds)
-    const preambleDuration = sampleRate * 0.5;
-    for (let i = 0; i < preambleDuration; i++) {
-      const t = i / sampleRate;
-      const preambleFreq = f0 + (df * i / preambleDuration);
-      channel[i] = amplitude * Math.sin(2 * Math.PI * preambleFreq * t);
-    }
-
-    // Add a short silence after the preamble (0.1 seconds)
-    const silenceDuration = sampleRate * 0.1;
-    for (let i = preambleDuration; i < preambleDuration + silenceDuration; i++) {
-      channel[i] = 0;
-    }
-
-    // Add start marker (0.1 seconds)
-    const markerDuration = sampleRate * 0.1;
-    for (let i = preambleDuration + silenceDuration; i < preambleDuration + silenceDuration + markerDuration; i++) {
-      const t = (i - (preambleDuration + silenceDuration)) / sampleRate;
-      channel[i] = amplitude * Math.sin(2 * Math.PI * (f0 + df) * t);
-    }
-
-    // Generate data signal (4.3 seconds)
-    const bitsPerSecond = 32; // 32 bits per second
-    const samplesPerBit = sampleRate / bitsPerSecond;
-    let phase = 0;
-    for (let i = preambleDuration + silenceDuration + markerDuration; i < buffer.length; i++) {
-      const dataIndex = i - (preambleDuration + silenceDuration + markerDuration);
-      const bitIndex = Math.floor(dataIndex / (samplesPerBit * 2)); // Each bit is repeated
-      const byteIndex = Math.floor(bitIndex / 8);
-      const bitInByte = 7 - (bitIndex % 8);
-      
-      if (byteIndex < key.length) {
-        const bit = (key[byteIndex] & (1 << bitInByte)) !== 0;
-        const frequency = bit ? f0 + df : f0;
-        phase += 2 * Math.PI * frequency / sampleRate;
-        channel[i] = amplitude * Math.sin(phase);
-      }
-    }
-
-    const source = audioContext.createBufferSource();
+    const buf = convertTypedArray(waveform, Float32Array);
+    const buffer = audioContextRef.current.createBuffer(1, buf.length, audioContextRef.current.sampleRate);
+    buffer.getChannelData(0).set(buf);
+    const source = audioContextRef.current.createBufferSource();
     source.buffer = buffer;
-    source.connect(audioContext.destination);
-    return source;
+    source.connect(audioContextRef.current.destination);
+    source.start(0);
   };
 
-  const startTransmission = () => {
-    if (isTransmitting) return;
-    setIsTransmitting(true);
+  const startCapture = () => {
+    ensureAudioContextAndGGWave();
+    if (!ggwaveInstanceRef.current || !audioContextRef.current) return;
 
-    const key = generateEncryptionKey();
-    const keyHex = Array.from(key).map(b => b.toString(16).padStart(2, '0')).join('');
-    addLog(`Generated encryption key: ${keyHex}`);
+    let constraints = {
+      audio: {
+        echoCancellation: false,
+        autoGainControl: false,
+        noiseSuppression: false
+      }
+    };
 
-    const f0 = 18000; // Base frequency
-    const df = 1000; // Frequency shift
-    const amplitude = 0.8; // Amplitude
+    navigator.mediaDevices.getUserMedia(constraints).then(function (e) {
+      mediaStreamRef.current = audioContextRef.current.createMediaStreamSource(e);
 
-    addLog(`Transmission parameters: f0=${f0}, df=${df}, amplitude=${amplitude}`);
+      const bufferSize = 1024;
+      const numberOfInputChannels = 1;
+      const numberOfOutputChannels = 1;
 
-    const source = generateSignal(key);
-    source.start();
+      recorderRef.current = audioContextRef.current.createScriptProcessor(
+        bufferSize,
+        numberOfInputChannels,
+        numberOfOutputChannels
+      );
 
-    // Add audible beep at the start of transmission
-    const oscillator = audioContext.createOscillator();
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // 440 Hz - A4 note
-    oscillator.connect(audioContext.destination);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.2); // Beep for 0.2 seconds
+      recorderRef.current.onaudioprocess = function (e) {
+        const source = e.inputBuffer;
+        const res = ggwaveModule.decode(ggwaveInstanceRef.current, convertTypedArray(new Float32Array(source.getChannelData(0)), Int8Array));
 
-    addLog('Started 4.5-second transmission');
-    setTimeout(() => {
-      setIsTransmitting(false);
-      addLog('Transmission ended');
-    }, 4500);
+        if (res && res.length > 0) {
+          const decodedText = new TextDecoder("utf-8").decode(res);
+          setRxData(decodedText);
+        }
+      };
+
+      mediaStreamRef.current.connect(recorderRef.current);
+      recorderRef.current.connect(audioContextRef.current.destination);
+    }).catch(function (e) {
+      console.error(e);
+    });
+
+    setRxData('Listening ...');
+    setIsCapturing(true);
+  };
+
+  const stopCapture = () => {
+    if (recorderRef.current) {
+      recorderRef.current.disconnect(audioContextRef.current.destination);
+      mediaStreamRef.current.disconnect(recorderRef.current);
+      recorderRef.current = null;
+    }
+
+    setRxData('Audio capture is paused! Press the "Start capturing" button to analyze audio from the microphone');
+    setIsCapturing(false);
   };
 
   return (
-    <div className="App">
-      <h1>Ultrasonic Test Signal Transmitter</h1>
-      <button onClick={startTransmission} disabled={isTransmitting} style={{ backgroundColor: isTransmitting ? 'gray' : 'blue' }}>
-        {isTransmitting ? 'Transmitting...' : 'Start 5s Test Signal'}
-      </button>
-      <div>
-        <h3>Logs:</h3>
-        {logs.map((log, index) => <div key={index}>{log}</div>)}
+    <div id="main-container">
+      Minimal <b>ggwave</b> example using Javascript bindings
+
+      <br /><br />
+
+      <div>Tx Data:</div> 
+      <textarea 
+        value={txData} 
+        onChange={(e) => setTxData(e.target.value)} 
+        style={{width:'300px', height:'100px'}}
+      />
+      <br />
+
+      <button onClick={onSend}>Send</button>
+
+      <br /><br />
+
+      <div>Rx data:</div> 
+      <textarea 
+        value={rxData} 
+        readOnly 
+        style={{width:'300px', height:'100px'}}
+      />
+      <br />
+
+      {!isCapturing ? (
+        <button onClick={startCapture}>Start capturing</button>
+      ) : (
+        <button onClick={stopCapture}>Stop capturing</button>
+      )}
+
+      <br /><br />
+
+      <div className="cell-version">
+        <span>
+          | Build time: <span className="nav-link">@GIT_DATE@</span> |
+          Commit hash: <a className="nav-link" href="https://github.com/ggerganov/ggwave/commit/@GIT_SHA1@">@GIT_SHA1@</a> |
+          Commit subject: <span className="nav-link">@GIT_COMMIT_SUBJECT@</span> |
+          <a className="nav-link" href="https://github.com/ggerganov/ggwave/tree/master/examples/ggwave-js">Source Code</a> |
+        </span>
       </div>
     </div>
-  )
+  );
 }
 
 export default App;

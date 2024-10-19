@@ -4,20 +4,12 @@ project(DisasterReliefSatelliteHub)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find required packages for srpt-protocol
+# Find required packages
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBSODIUM REQUIRED libsodium)
 
-# Add submodules
-add_subdirectory(lib/srpt-protocol)
-add_subdirectory(lib/riif-ultrasonic)
-
 # Include directories
 include_directories(include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/srpt-protocol/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/srpt-protocol/src)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/riif-ultrasonic/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/riif-ultrasonic/src)
 include_directories(${LIBSODIUM_INCLUDE_DIRS})
 
 # Add source files
@@ -28,19 +20,12 @@ file(GLOB_RECURSE SOURCES
     "src/devices/*.cpp"
 )
 
-# Set include directories for riif_ultrasonic
-target_include_directories(riif_ultrasonic PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib/riif-ultrasonic/include
-)
-
 # Create main library
 add_library(disaster_relief_hub_lib ${SOURCES})
 
-# Link submodule libraries to main library
+# Link libraries to main library
 target_link_libraries(disaster_relief_hub_lib
     PUBLIC
-        srpt-protocol
-        riif_ultrasonic
         ${LIBSODIUM_LIBRARIES}
 )
 

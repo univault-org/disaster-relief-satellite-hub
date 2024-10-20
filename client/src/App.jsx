@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
+import UDARP from './UDARP';  // Import the UDARP component
 
 function App() {
   const [ggwaveModule, setGgwaveModule] = useState(null);
   const [txData, setTxData] = useState('Hello javascript');
   const [rxData, setRxData] = useState('');
   const [isCapturing, setIsCapturing] = useState(false);
+  const [deviceId, setDeviceId] = useState('device123');  // Add state for deviceId
+  const [generatedKey, setGeneratedKey] = useState('');  // Add state for generated key
   const audioContextRef = useRef(null);
   const ggwaveInstanceRef = useRef(null);
   const recorderRef = useRef(null);
@@ -121,9 +124,37 @@ function App() {
     setIsCapturing(false);
   };
 
+  // Add a function to handle key generation
+  const handleGenerateKey = (key) => {
+    setGeneratedKey(key);
+  };
+
   return (
     <div id="main-container">
       Minimal <b>ggwave</b> example using Javascript bindings
+
+      <br /><br />
+
+      <div>Device ID:</div>
+      <input 
+        type="text" 
+        value={deviceId} 
+        onChange={(e) => setDeviceId(e.target.value)}
+        style={{width:'300px'}}
+      />
+
+      <br /><br />
+
+      <UDARP deviceId={deviceId} onKeyGenerated={handleGenerateKey} />
+
+      <br />
+
+      <div>Generated Key:</div>
+      <textarea 
+        value={generatedKey} 
+        readOnly 
+        style={{width:'300px', height:'50px'}}
+      />
 
       <br /><br />
 
